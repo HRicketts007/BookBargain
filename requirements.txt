@@ -1,0 +1,10 @@
+Flask
+Flask-SQLAlchemy
+psychopg2
+psycopg2-binary
+Flask-Migrate
+Flask-WTF
+Flask-Login
+Flask-Bcrypt
+getpass
+config

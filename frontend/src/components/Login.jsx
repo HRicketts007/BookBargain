@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Perform login logic here, e.g., API call to authenticate user
-    localStorage.setItem('authToken', 'your-auth-token');
-    onLogin();
-    navigate('/search'); // Redirect to search page after login
+    try {
+      const response = await axios.post('/login', { username, password });
+      localStorage.setItem('authToken', response.data.token); // Storing the token in localStorage
+      navigate('/dashboard'); // Redirect to dashboard page after login
+    } catch (err) {
+      setError('Invalid username or password');
+    }
   };
 
   return (
@@ -40,6 +45,7 @@ const Login = ({ onLogin }) => {
             required
           />
         </div>
+        {error && <div className="alert alert-danger">{error}</div>}
         <button type="submit" className="btn btn-primary">Login</button>
       </form>
     </div>

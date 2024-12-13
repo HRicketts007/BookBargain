@@ -26,7 +26,7 @@ const Account = () => {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
         });
-        setUserBooks(response.data.books);
+        setUserBooks(response.data.books || []);
       } catch (error) {
         console.error('Error fetching user books:', error);
       }
@@ -49,9 +49,13 @@ const Account = () => {
       <p><strong>Address:</strong> {userData.address}</p>
       <h2>Books Added</h2>
       <ul>
-        {userBooks.map(book => (
-          <li key={book.IBSN}>{book.title}</li>
-        ))}
+        {userBooks.length > 0 ? (
+          userBooks.map(book => (
+            <li key={book.ibsn}>{book.title}</li>
+          ))
+        ) : (
+          <li>No books added</li>
+        )}
       </ul>
     </div>
   );

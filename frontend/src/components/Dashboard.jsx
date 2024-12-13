@@ -30,6 +30,9 @@ const Dashboard = () => {
             <li className="nav-item">
               <Link className="nav-link" to="/inbox">Inbox</Link>
             </li>
+            <li className="nav-item">
+              <Link className="nav-link" to="/bargain">Bargain</Link>
+            </li>
           </ul>
         </div>
       </nav>

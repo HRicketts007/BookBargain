@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const Messaging = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [inbox, setInbox] = useState([]);
   const [messageForm, setMessageForm] = useState({
     receiver_id: '',
@@ -68,6 +69,11 @@ const Messaging = () => {
     }
   };
 
+  // Handle navigation to bargain page
+  const handleNavigateToBargain = () => {
+    navigate('/bargain');
+  };
+
   return (
     <div className="container mt-4">
       <h1>Messaging</h1>
@@ -78,8 +84,8 @@ const Messaging = () => {
         {inbox.length > 0 ? (
           <ul className="list-group">
             {inbox.map((message) => (
-              <li key={message.messageID} className="list-group-item">
-                <strong>From:</strong> {message.senderID} <br />
+              <li key={message.messageid} className="list-group-item">
+                <strong>From:</strong> {message.senderid} <br />
                 <p>{message.contents}</p>
               </li>
             ))}
@@ -129,6 +135,15 @@ const Messaging = () => {
             Send Message
           </button>
         </form>
+      </section>
+
+      <hr />
+
+      {/* Bargain Button */}
+      <section className="bargain-button">
+        <button className="btn btn-secondary" onClick={handleNavigateToBargain}>
+          Bargain
+        </button>
       </section>
     </div>
   );

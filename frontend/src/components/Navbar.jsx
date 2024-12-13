@@ -25,7 +25,7 @@ const Navbar = () => {
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     setIsAuthenticated(false);
-    navigate('/homepage'); // Redirect to homepage after logout
+    navigate('/'); // Redirect to homepage after logout
   };
 
   if (!isAuthenticated || location.pathname === '/dashboard') {
@@ -56,6 +56,9 @@ const Navbar = () => {
             </li>
             <li className={`nav-item ${location.pathname === '/account' ? 'active' : ''}`}>
               <Link className="nav-link" to="/account">Account</Link>
+            </li>
+            <li className={`nav-item ${location.pathname === '/bargain' ? 'active' : ''}`}>
+              <Link className="nav-link" to="/bargain">Bargain</Link>
             </li>
             <li className="nav-item">
               <button className="nav-link" onClick={handleLogout}>Logout</button>

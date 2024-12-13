@@ -3,8 +3,7 @@ from flask_login import LoginManager, login_user, logout_user, current_user, log
 from config import Config
 from datetime import timedelta
 from flask_jwt_extended import create_access_token, JWTManager
-from Database.models import (db, User, Book, Message, Listing, Transaction, Transaction_BookID, Sends, Receives,
-                             Requesting, Covers, Initiate)
+from Database.models import (db, User, Book, Message, listing, Transaction, sends, covers, initiate)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -108,39 +107,48 @@ def add_book():
         description = data.get('description')
 
         new_book = Book(
-            IBSN=ibsn,
+            ibsn=ibsn,
             title=title,
             author=author,
             genre=genre,
             condition=condition,
             description=description,
-            ownerID=current_user.user_id
+            #ownerid=current_user.user_id
         )
 
         db.session.add(new_book)
         db.session.commit()
+
+        listing_relation = listing(
+            bookid=new_book.bookid,
+            ownerid=current_user.user_id
+        )
+
+        db.session.add(listing_relation)
+        db.session.commit()
+
     return "Book added successfully!"
 # List books function
 @app.route('/list_user_books', methods=['GET'])
 def list_user_books():
     try:
-        books = Book.query.filter_by(availability=True, ownerID=current_user.user_id).all()
+        books = db.session.query(Book, listing).join(listing, Book.bookid == listing.bookid).filter(listing.ownerid == current_user.user_id, Book.availability == True).all()
         if not books:
             return jsonify({"message": "No books available."})
 
         # Prepare the list of books to return
         books_list = [
             {
-                "IBSN": book.IBSN,
+                "IBSN": book.ibsn,
                 "title": book.title,
                 "author": book.author,
                 "genre": book.genre,
                 "condition": book.condition,
                 "description": book.description,
                 "availability": book.availability,
-                "ownerID": book.ownerID
+                "ownerid": listing.ownerid
             }
-            for book in books
+            for book, listing in books
         ]
 
         return jsonify({"books": books_list})
@@ -159,7 +167,7 @@ def search_books():
         ibsn = request.args.get('ibsn', '').lower()
 
         # Build a query dynamically based on the provided filters
-        query = Book.query
+        query = db.session.query(Book, listing).join(listing, Book.bookid == listing.bookid)
         if title:
             query = query.filter(Book.title.ilike(f"%{title}%"))
         if author:
@@ -171,8 +179,11 @@ def search_books():
         if ibsn:
             query = query.filter(Book.ibsn.ilike(f"%{ibsn}%"))
 
+        # Exclude books added by the current user
+        query = query.filter(listing.ownerid != current_user.user_id)
+
         # Execute the query and get the results
-        books = query.filter_by(availability=True).all()
+        books = query.filter(Book.availability == True).all()
 
         # Check if any books were found
         if not books:
@@ -181,16 +192,16 @@ def search_books():
         # Prepare the list of books to return
         books_list = [
             {
-                "IBSN": book.IBSN,
+                "ibsn": book.ibsn,
                 "title": book.title,
                 "author": book.author,
                 "genre": book.genre,
                 "condition": book.condition,
                 "description": book.description,
                 "availability": book.availability,
-                "ownerID": book.ownerID
+                "ownerid": listing.ownerid
             }
-            for book in books
+            for book, listing in books
         ]
 
         return jsonify({"books": books_list}), 200
@@ -216,37 +227,87 @@ def send_message():
         return jsonify({"message": "Content and receiver are required!"}), 400
 
     # Create the new message
-    new_message = Message(
+    message = Message(
         contents=content,
-        senderID=current_user.user_id,
-        recieverID=receiver_id
     )
 
-    try:
-        db.session.add(new_message)
-        db.session.commit()
-        return jsonify({"message": "Message sent successfully!"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Failed to send message", "error": str(e)}), 500
+    db.session.add(message)
+    db.session.commit()
+
+    sent_relation = sends(
+        senderid=current_user.user_id,
+        receiverid=receiver_id,
+        messageid=message.messageid,
+    )
+
+    db.session.add(sent_relation)
+    db.session.commit()
 
 @app.route('/get_messages', methods=['GET'])
 @login_required
 def get_messages():
-    messages = Message.query.filter_by(recieverID=current_user.user_id).all()
+    try:
+        messages = db.session.query(Message, sends).join(sends, Message.messageid == sends.messageid).filter(sends.receiverid == current_user.user_id).all()
 
-    # Serialize messages
-    messages_list = [
-        {
-            "messageID": msg.messageID,
-            "contents": msg.contents,
-            "timestamp": msg.timestamp,
-            "senderID": msg.senderID,
-            "recieverID": msg.recieverID
-        }
-        for msg in messages
-    ]
-    return jsonify({"messages": messages_list}), 200
+        # Serialize messages
+        messages_list = [
+            {
+                "messageid": msg.messageid,
+                "contents": msg.contents,
+                "timestamp": msg.timestamp,
+                "senderid": send.senderid,
+                "receiverid": send.receiverid
+            }
+            for msg, send in messages
+        ]
+        return jsonify({"messages": messages_list}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/bargain_invitation', methods=['POST'])
+@login_required
+def create_bargain():
+    data = request.get_json()
+    desired_book_id = data.get('desired_book')
+    user_book_id = data.get('user_book')
+    receiver_id = data.get('receiver_id')
+
+    if not desired_book_id or not user_book_id or not receiver_id:
+        return jsonify({"message": "All fields are required!"}), 400
+
+    transaction = Transaction(
+        status='pending'
+    )
+    db.session.add(transaction)
+    db.session.commit()
+
+    Initiate = initiate(
+        transactionid=transaction.transactionid,
+        senderid=current_user.user_id,
+        receiverid=receiver_id
+    )
+    db.session.add(Initiate)
+    db.session.commit()
+
+    Covers = covers(
+        transactionid=transaction.transactionid,
+        sent_id=user_book_id,
+        received_id=desired_book_id
+    )
+    db.session.add(Covers)
+    db.session.commit()
+
+    return jsonify({"message": "Bargain invitation sent successfully!"}), 200
+
+@app.route('/retrieve_bargains', methods=['GET'])
+@login_required
+def retrieve_bargains():
+    bargains_sent = Transaction.query.filter_by(receiver=current_user.user_id).all()
+    bargains_received = Transaction.query.filter_by(initiator=current_user.user_id).all()
+
+    return jsonify({"transactions_sent": bargains_sent, "transactions_received": bargains_received}), 200
 
 if __name__ == '__main__':
     with app.app_context():

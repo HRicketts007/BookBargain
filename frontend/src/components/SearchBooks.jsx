@@ -8,7 +8,7 @@ const SearchBooks = () => {
     author: '',
     genre: '',
     condition: '',
-    IBSN: ''
+    ibsn: ''
   });
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ const SearchBooks = () => {
   };
 
   const handleSendMessage = () => {
-    navigate('/inbox', { state: { receiverID: selectedBook.ownerID } });
+    navigate('/inbox', { state: { receiverID: selectedBook.ownerid } });
   };
 
   return (
@@ -94,7 +94,7 @@ const SearchBooks = () => {
           />
         </div>
         <div className="mb-3">
-          <label className="form-label">IBSN</label>
+          <label className="form-label">ibsn</label>
           <input
             type="text"
             className="form-control"
@@ -114,7 +114,7 @@ const SearchBooks = () => {
       {books.length > 0 && (
         <ul className="list-group mt-3">
           {books.map((book) => (
-            <li key={book.IBSN} className="list-group-item">
+            <li key={book.ibsn} className="list-group-item">
               <button className="btn btn-link" onClick={() => handleBookClick(book)}>
                 {book.title}
               </button>
@@ -129,9 +129,9 @@ const SearchBooks = () => {
           <p><strong>Title:</strong> {selectedBook.title}</p>
           <p><strong>Author:</strong> {selectedBook.author}</p>
           <p><strong>Genre:</strong> {selectedBook.genre}</p>
-          <p><strong>IBSN:</strong> {selectedBook.IBSN}</p>
+          <p><strong>ibsn:</strong> {selectedBook.ibsn}</p>
           <p><strong>Description:</strong> {selectedBook.description}</p>
-          <p><strong>Owner ID:</strong> {selectedBook.ownerID}</p>
+          <p><strong>Owner ID:</strong> {selectedBook.ownerid}</p>
           <button className="btn btn-primary mt-3" onClick={handleSendMessage}>
             Send Message
           </button>

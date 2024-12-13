@@ -18,12 +18,11 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(100), nullable=False)
 
     # Relationships to other tables
-    books = db.relationship('Book', backref='owner', lazy=True)
-    messages_sent = db.relationship('Message', foreign_keys='Message.senderID', backref='sender', lazy=True)
-    messages_received = db.relationship('Message', foreign_keys='Message.recieverID', backref='reciever', lazy=True)
-    transactions_sent = db.relationship('Transaction', foreign_keys='Transaction.senderID', backref='sender', lazy=True)
-    transactions_received = db.relationship('Transaction', foreign_keys='Transaction.recieverID', backref='reciever',
-                                            lazy=True)
+    books = db.relationship('listing', foreign_keys='listing.ownerid', backref='owner', lazy=True)
+    messages_sent = db.relationship('sends', foreign_keys='sends.senderid', backref='sender', lazy=True)
+    messages_received = db.relationship('sends', foreign_keys='sends.receiverid', backref='receiver', lazy=True)
+    transactions_sent = db.relationship('initiate', foreign_keys='initiate.senderid', backref='sender', lazy=True)
+    transactions_received = db.relationship('initiate', foreign_keys='initiate.receiverid', backref='receiver',lazy=True)
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -35,18 +34,20 @@ class User(UserMixin, db.Model):
 # Book Table
 class Book(db.Model):
     __tablename__ = 'Book'
-
-    IBSN = db.Column(db.String(13), primary_key=True)
+    bookid = db.Column(db.Integer, primary_key=True)
+    ibsn = db.Column(db.String(13), nullable=False)
     author = db.Column(db.String(100), nullable=False)
     genre = db.Column(db.String(50), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     condition = db.Column(db.String(50), nullable=False)
     description = db.Column(db.String(500), nullable=True)
     availability = db.Column(db.Boolean, default=True)
-    ownerID = db.Column(db.Integer, db.ForeignKey('User.user_id'), nullable=False)
+    #ownerid = db.Column(db.Integer, db.ForeignKey('listing.user_id'), nullable=False)
 
     # Relationship to Transaction and other tables
-    transactions = db.relationship('Transaction_BookID', backref='book', lazy=True)
+    covers_sent = db.relationship('covers', foreign_keys='covers.sent_id', backref='sent_book')
+    covers_received = db.relationship('covers', foreign_keys='covers.received_id', backref='received_book')
+    listing = db.relationship('listing', foreign_keys='listing.bookid', backref='book')
 
     def __repr__(self):
         return f"<Book {self.title} by {self.author}>"
@@ -56,105 +57,74 @@ class Book(db.Model):
 class Message(db.Model):
     __tablename__ = 'Message'
 
-    messageID = db.Column(db.Integer, primary_key=True)
+    messageid = db.Column(db.Integer, primary_key=True)
     contents = db.Column(db.String(1000), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    senderID = db.Column(db.Integer, db.ForeignKey('User.user_id'), nullable=False)
-    recieverID = db.Column(db.Integer, db.ForeignKey('User.user_id'), nullable=False)
+
+    # Relationship to sends
+    sends = db.relationship('sends', foreign_keys='sends.messageid', backref='sent_message')
+
 
     def __repr__(self):
-        return f"<Message {self.messageID} from {self.senderID} to {self.recieverID}>"
+        return f"<Message {self.messageid} from {self.senderid} to {self.recieverid}>"
 
 
 # Transaction Table
 class Transaction(db.Model):
     __tablename__ = 'Transaction'
 
-    TransactionID = db.Column(db.Integer, primary_key=True)
-    senderID = db.Column(db.Integer, db.ForeignKey('User.user_id'), nullable=False)
-    recieverID = db.Column(db.Integer, db.ForeignKey('User.user_id'), nullable=False)
+    transactionid = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.String(50), nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationship to Transaction_BookID
-    books = db.relationship('Transaction_BookID', backref='transaction', lazy=True)
+    # Relationship to tables
+    initiate = db.relationship('initiate', foreign_keys='initiate.transactionid', backref='transaction', lazy=True)
+    covers_sent = db.relationship('covers', foreign_keys='covers.transactionid', backref='sent_transaction')
 
     def __repr__(self):
-        return f"<Transaction {self.TransactionID} between {self.senderID} and {self.recieverID}>"
+        return f"<Transaction {self.transactionid} between {self.senderid} and {self.recieverid}>"
 
-
-# Transaction_BookID Table
-class Transaction_BookID(db.Model):
-    __tablename__ = 'Transaction_BookID'
-
-    TransactionID = db.Column(db.Integer, db.ForeignKey('Transaction.TransactionID'), primary_key=True)
-    IBSN = db.Column(db.String(13), db.ForeignKey('Book.IBSN'), primary_key=True)
-
-    def __repr__(self):
-        return f"<Transaction_BookID {self.TransactionID} - {self.IBSN}>"
-
-
-# Sends Table
-class Sends(db.Model):
+# sends Table
+class sends(db.Model):
     __tablename__ = 'sends'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
-    messageID = db.Column(db.Integer, db.ForeignKey('Message.messageID'), primary_key=True)
+    senderid = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+    receiverid = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+    messageid = db.Column(db.Integer, db.ForeignKey('Message.messageid'), primary_key=True)
 
     def __repr__(self):
-        return f"<Sends user_id {self.user_id} messageID {self.messageID}>"
+        return f"<sends user_id {self.user_id} messageid {self.messageid}>"
 
-
-# Receives Table
-class Receives(db.Model):
-    __tablename__ = 'receives'
-
-    user_id = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
-    messageID = db.Column(db.Integer, db.ForeignKey('Message.messageID'), primary_key=True)
-
-    def __repr__(self):
-        return f"<Receives user_id {self.user_id} messageID {self.messageID}>"
-
-
-# Requesting Table
-class Requesting(db.Model):
-    __tablename__ = 'requesting'
-
-    user_id = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
-    IBSN = db.Column(db.String(13), db.ForeignKey('Book.IBSN'), primary_key=True)
-
-    def __repr__(self):
-        return f"<Requesting user_id {self.user_id} IBSN {self.IBSN}>"
-
-
-# Listing Table
-class Listing(db.Model):
+# listing Table
+class listing(db.Model):
     __tablename__ = 'listing'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
-    IBSN = db.Column(db.String(13), db.ForeignKey('Book.IBSN'), primary_key=True)
+    ownerid = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+    bookid = db.Column(db.String(13), db.ForeignKey('Book.bookid'), primary_key=True)
 
     def __repr__(self):
-        return f"<Listing user_id {self.user_id} IBSN {self.IBSN}>"
+        return f"<listing user_id {self.user_id} bookid {self.bookid}>"
 
 
-# Covers Table
-class Covers(db.Model):
+# covers Table
+class covers(db.Model):
     __tablename__ = 'covers'
 
-    TransactionID = db.Column(db.Integer, db.ForeignKey('Transaction.TransactionID'), primary_key=True)
-    IBSN = db.Column(db.String(13), db.ForeignKey('Book.IBSN'), primary_key=True)
+    transactionid = db.Column(db.Integer, db.ForeignKey('Transaction.transactionid'), primary_key=True)
+    sent_id = db.Column(db.String(13), db.ForeignKey('Book.bookid'), primary_key=True)
+    received_id = db.Column(db.String(13), db.ForeignKey('Book.bookid'), primary_key=True)
 
     def __repr__(self):
-        return f"<Covers TransactionID {self.TransactionID} IBSN {self.IBSN}>"
+        return f"<covers transactionid {self.transactionid} bookid {self.bookid}>"
 
 
-# Initiate Table
-class Initiate(db.Model):
+# initiate Table
+class initiate(db.Model):
     __tablename__ = 'initiate'
 
-    TransactionID = db.Column(db.Integer, db.ForeignKey('Transaction.TransactionID'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+    transactionid = db.Column(db.Integer, db.ForeignKey('Transaction.transactionid'), primary_key=True)
+    senderid = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
+    receiverid = db.Column(db.Integer, db.ForeignKey('User.user_id'), primary_key=True)
 
     def __repr__(self):
-        return f"<Initiate TransactionID {self.TransactionID} user_id {self.user_id}>"
+        return f"<initiate transactionid {self.transactionid} user_id {self.user_id}>"

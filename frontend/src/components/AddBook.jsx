@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import './AddBook.css';
 
 const AddBook = () => {
   const [IBSN, setIBSN] = useState('');
@@ -16,7 +17,6 @@ const AddBook = () => {
     e.preventDefault();
 
     try {
-      // Send the book data to the backend to add the book
       const response = await axios.post('/add_book', {
         IBSN,
         title,
@@ -26,7 +26,6 @@ const AddBook = () => {
         description,
       });
 
-      // Redirect to the dashboard or a confirmation page
       alert('Book added successfully!');
       navigate('/dashboard');
     } catch (error) {
@@ -35,11 +34,13 @@ const AddBook = () => {
   };
 
   return (
-    <div className="container mt-5">
-      <h2>Add a Book</h2>
+    <div className="addbook-container">
+      <div className="addbook-header">
+        <h1>Add a Book</h1>
+      </div>
       {errorMessage && <div className="alert alert-danger">{errorMessage}</div>}
       <form onSubmit={handleSubmit}>
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">IBSN</label>
           <input
             type="text"
@@ -50,7 +51,7 @@ const AddBook = () => {
           />
         </div>
 
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">Title</label>
           <input
             type="text"
@@ -61,7 +62,7 @@ const AddBook = () => {
           />
         </div>
 
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">Author</label>
           <input
             type="text"
@@ -72,7 +73,7 @@ const AddBook = () => {
           />
         </div>
 
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">Genre</label>
           <input
             type="text"
@@ -83,7 +84,7 @@ const AddBook = () => {
           />
         </div>
 
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">Condition</label>
           <input
             type="text"
@@ -94,7 +95,7 @@ const AddBook = () => {
           />
         </div>
 
-        <div className="mb-3">
+        <div className="addbook-section">
           <label className="form-label">Description</label>
           <textarea
             className="form-control"
@@ -104,9 +105,11 @@ const AddBook = () => {
           ></textarea>
         </div>
 
-        <button type="submit" className="btn btn-primary">
-          Add Book
-        </button>
+        <div className="addbook-section">
+          <button type="submit" className="btn btn-primary">
+            Add Book
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -1,9 +1,13 @@
+import os
 from flask import Flask, redirect, url_for, render_template, request, jsonify
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 from config import Config
 from datetime import timedelta
 from flask_jwt_extended import create_access_token, JWTManager
 from Database.models import (db, User, Book, Message, listing, Transaction, sends, covers, initiate)
+import requests
+
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -11,7 +15,7 @@ app.config.from_object(Config)
 db.init_app(app)
 login_manager = LoginManager(app)
 
-app.config['JWT_SECRET_KEY'] = 'your_secret_key'  # Replace with a secure secret key
+app.config['JWT_SECRET_KEY'] = 'b82141492174h129bcbsiuafda2323'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Token expiration time
 jwt = JWTManager(app)
 
@@ -129,6 +133,37 @@ def add_book():
 
     return "Book added successfully!"
 # List books function
+
+@app.route('/fetch_book_details', methods=['GET'])
+def fetch_book_details():
+    ibsn = request.args.get('ibsn')
+    if not ibsn:
+        return jsonify({"error": "ibsn is required"}), 400
+
+    google_api_key = 'AIzaSyCJbZOEp2NaX7Z8wGFR4OXhRnaAlTPo-rQ'
+    google_books_api_url = f"https://www.googleapis.com/books/v1/volumes?q=isbn:{ibsn}&key={google_api_key}"
+    response = requests.get(google_books_api_url)
+    if response.status_code != 200:
+        return jsonify({"error": "Failed to fetch data from Google Books API"}), 500
+
+    book_data = response.json()
+    if "items" not in book_data:
+        return jsonify({"error": "No book found with the provided IBSN"}), 404
+
+    book_info = book_data["items"][0]["volumeInfo"]
+    book_details = {
+        "title": book_info.get("title"),
+        "authors": book_info.get("authors"),
+        "publisher": book_info.get("publisher"),
+        "publishedDate": book_info.get("publishedDate"),
+        "description": book_info.get("description"),
+        "pageCount": book_info.get("pageCount"),
+        "categories": book_info.get("categories"),
+        "thumbnail": book_info.get("imageLinks", {}).get("thumbnail")
+    }
+
+    return jsonify(book_details), 200
+
 @app.route('/list_user_books', methods=['GET'])
 def list_user_books():
     try:
@@ -139,7 +174,8 @@ def list_user_books():
         # Prepare the list of books to return
         books_list = [
             {
-                "IBSN": book.ibsn,
+                "bookid": book.bookid,
+                "ibsn": book.ibsn,
                 "title": book.title,
                 "author": book.author,
                 "genre": book.genre,
@@ -192,6 +228,7 @@ def search_books():
         # Prepare the list of books to return
         books_list = [
             {
+                "bookid": book.bookid,
                 "ibsn": book.ibsn,
                 "title": book.title,
                 "author": book.author,
@@ -270,14 +307,17 @@ def get_messages():
 @login_required
 def create_bargain():
     data = request.get_json()
-    desired_book_id = data.get('desired_book')
-    user_book_id = data.get('user_book')
+    desired_book = data.get('desired_book')
+    user_book = data.get('user_book')
     receiver_id = data.get('receiver_id')
 
-    if not desired_book_id or not user_book_id or not receiver_id:
+    if not desired_book or not user_book or not receiver_id:
         return jsonify({"message": "All fields are required!"}), 400
 
+    bargain_title = desired_book['title'] + " for " + user_book['title']
+
     transaction = Transaction(
+        title=bargain_title,
         status='pending'
     )
     db.session.add(transaction)
@@ -293,8 +333,8 @@ def create_bargain():
 
     Covers = covers(
         transactionid=transaction.transactionid,
-        sent_id=user_book_id,
-        received_id=desired_book_id
+        sent_id=user_book['bookid'],
+        received_id=desired_book['bookid']
     )
     db.session.add(Covers)
     db.session.commit()
@@ -304,10 +344,69 @@ def create_bargain():
 @app.route('/retrieve_bargains', methods=['GET'])
 @login_required
 def retrieve_bargains():
-    bargains_sent = Transaction.query.filter_by(receiver=current_user.user_id).all()
-    bargains_received = Transaction.query.filter_by(initiator=current_user.user_id).all()
+    bargains_sent = db.session.query(Transaction, initiate).join(initiate, Transaction.transactionid == initiate.transactionid).filter(initiate.senderid == current_user.user_id).all()
+    bargains_received = db.session.query(Transaction, initiate).join(initiate, Transaction.transactionid == initiate.transactionid).filter(initiate.receiverid == current_user.user_id).all()
 
-    return jsonify({"transactions_sent": bargains_sent, "transactions_received": bargains_received}), 200
+    transactions_sent = [
+        {
+            "transactionid": transaction.transactionid,
+            "title": transaction.title,
+            "status": transaction.status,
+            "senderid": init.senderid,
+            "receiverid": init.receiverid
+        }
+        for transaction, init in bargains_sent
+    ]
+
+    transactions_received = [
+        {
+            "transactionid": transaction.transactionid,
+            "title": transaction.title,
+            "status": transaction.status,
+            "senderid": init.senderid,
+            "receiverid": init.receiverid
+        }
+        for transaction, init in bargains_received
+    ]
+
+    return jsonify({"transactions_sent": transactions_sent, "transactions_received": transactions_received}), 200
+
+@app.route('/accept_bargain', methods=['POST'])
+@login_required
+def accept_bargain():
+    data = request.get_json()
+    transaction_id = data.get('transaction_id')
+
+    if not transaction_id:
+        return jsonify({"message": "Transaction ID is required!"}), 400
+
+    transaction = Transaction.query.get(transaction_id)
+    if not transaction:
+        return jsonify({"message": "Transaction not found!"}), 404
+
+    transaction.status = 'in progress'
+    db.session.commit()
+
+    return jsonify({"message": "Transaction accepted successfully!"}), 200
+
+@app.route('/finalize_bargain', methods=['POST'])
+@login_required
+def finalize_bargain():
+    data = request.get_json()
+    transaction_id = data.get('transaction_id')
+
+    if not transaction_id:
+        return jsonify({"message": "Transaction ID is required!"}), 400
+
+    transaction = Transaction.query.get(transaction_id)
+    if not transaction:
+        return jsonify({"message": "Transaction not found!"}), 404
+
+    transaction.status = 'completed'
+    db.session.commit()
+
+    return jsonify({"message": "Transaction finalized successfully!"}), 200
+
 
 if __name__ == '__main__':
     with app.app_context():

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import './Dashboard.css';
 
 const Dashboard = () => {
   const [books, setBooks] = useState([]);
@@ -12,31 +13,28 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <div className="container mt-5">
-      <h1>Book Bargain</h1>
-      <h2>My Dashboard</h2>
-      <nav className="navbar navbar-expand-lg navbar-light bg-light">
-        <div className="container-fluid">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            <li className="nav-item">
-              <Link className="nav-link" to="/add-book">Add Book</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/search">Search Books</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/account">View Account</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/inbox">Inbox</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/bargain">Bargain</Link>
-            </li>
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h1>Book Bargain</h1>
+        <div className="user-info">
+          <span>John Doe</span>
+        </div>
+      </div>
+      <div className="dashboard-content">
+        <div className="dashboard-sidebar">
+          <ul>
+            <li><Link to="/add-book">Add Book</Link></li>
+            <li><Link to="/search">Search Books</Link></li>
+            <li><Link to="/account">View Account</Link></li>
+            <li><Link to="/inbox">Inbox</Link></li>
+            <li><Link to="/bargain">Bargain</Link></li>
           </ul>
         </div>
-      </nav>
-      {/* Add any other dashboard-specific content here */}
+        <div className="dashboard-main">
+          <h2>My Dashboard</h2>
+          {/* Add any other dashboard-specific content here */}
+        </div>
+      </div>
     </div>
   );
 };
